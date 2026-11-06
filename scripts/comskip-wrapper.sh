@@ -27,7 +27,48 @@ except Exception as e:
 PY
 }
 
-"$COMSKIP_REAL" "$@"
-rc=$?
+# [mackid1993/snappier-server] GPU decoding for Comskip. Comskip decodes the
+# whole recording, which is the heaviest thing this container does. When a GPU
+# is passed in (see "GPU acceleration" in the README), decode on it:
+#   Intel (vendor 0x8086 render node): --qsv     (Intel Quick Sync)
+#   NVIDIA (/dev/nvidia0 + libcuda):   --cuvid   (NVDEC)
+# AMD has no decoder Comskip can use, so it stays on the CPU. If a GPU run
+# fails (exit code above 1; Comskip exits 1 when it finds no commercials),
+# the run is repeated on the CPU, so a GPU problem never costs the .edl.
+gpu_args() {
+  local node vendor
+  if [[ -e /dev/nvidia0 ]] && ldconfig -p 2>/dev/null | grep -q 'libcuda\.so'; then
+    echo "--cuvid --hwassist"; return
+  fi
+  for node in /dev/dri/renderD*; do
+    [[ -e "$node" ]] || continue
+    vendor="$(cat "/sys/class/drm/${node##*/}/device/vendor" 2>/dev/null || true)"
+    if [[ "$vendor" == "0x8086" ]]; then
+      echo "--qsv --hwassist"; return
+    fi
+  done
+}
+
+GPU_ARGS=""
+case " $* " in
+  *" --qsv "*|*" --cuvid "*|*" --vdpau "*|*" --dxva2 "*|*" --hwassist "*) ;;
+  *) GPU_ARGS="$(gpu_args)" ;;
+esac
+
+rc=0
+if [[ -n "$GPU_ARGS" ]]; then
+  echo "[comskip-wrapper] decoding on the GPU ($GPU_ARGS)"
+  # shellcheck disable=SC2086
+  "$COMSKIP_REAL" $GPU_ARGS "$@"
+  rc=$?
+  if [[ $rc -gt 1 ]]; then
+    echo "[comskip-wrapper] GPU run failed (exit $rc), repeating on the CPU"
+    "$COMSKIP_REAL" "$@"
+    rc=$?
+  fi
+else
+  "$COMSKIP_REAL" "$@"
+  rc=$?
+fi
 recover_orphans
 exit $rc

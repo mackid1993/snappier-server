@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfribidi-dev libharfbuzz-dev \
     libssl-dev \
     zlib1g-dev libzstd-dev libjitterentropy3-dev \
+    libva-dev libdrm-dev \
     libx11-dev libxext-dev libxfixes-dev libxi-dev libxrender-dev libxrandr-dev \
  && rm -rf /var/lib/apt/lists/*
 
@@ -82,6 +83,16 @@ RUN git clone --depth=1 https://chromium.googlesource.com/webm/libvpx /tmp/libvp
  && ./configure --prefix=/usr/local --disable-examples --disable-unit-tests --enable-vp9-highbitdepth \
  && make -j"$(nproc)" && make install
 
+# [mackid1993] GPU support. NVIDIA: the ffnvcodec headers (FFmpeg loads the
+# driver's libraries at run time, injected by the NVIDIA Container Toolkit).
+# Intel Quick Sync: libvpl, which Intel ships for amd64 only.
+RUN git clone --depth=1 https://github.com/FFmpeg/nv-codec-headers.git /tmp/nv-codec-headers \
+ && make -C /tmp/nv-codec-headers PREFIX=/usr/local install \
+ && if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends libvpl-dev \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # opus (static)
 RUN git clone --depth=1 https://github.com/xiph/opus.git /tmp/opus \
  && cd /tmp/opus && ./autogen.sh \
@@ -115,9 +126,17 @@ RUN set -eux; \
     --enable-openssl \
     --enable-libx264 --enable-libx265 \
     --enable-libvpx --enable-libopus --enable-libass --enable-libfreetype \
+    --enable-vaapi --enable-ffnvcodec --enable-nvdec --enable-nvenc --enable-cuvid \
+    $( [ "$(dpkg --print-architecture)" = "amd64" ] && echo --enable-libvpl ) \
     --disable-debug --disable-doc \
     || { tail -40 ffbuild/config.log; exit 1; }; \
-  make -j"$(nproc)" && make install && hash -r
+  make -j"$(nproc)" && make install && hash -r; \
+  # [mackid1993] Fail the build if GPU encoders are missing.
+  enc="$(/usr/local/bin/ffmpeg -hide_banner -encoders)"; \
+  for e in h264_vaapi hevc_vaapi h264_nvenc hevc_nvenc; do echo "$enc" | grep -q " $e " || { echo "missing $e" >&2; exit 1; }; done; \
+  if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+    for e in h264_qsv hevc_qsv; do echo "$enc" | grep -q " $e " || { echo "missing $e" >&2; exit 1; }; done; \
+  fi
 
 ########################################
 # Stage 1b: Build Comskip from source (identical to upstream)
@@ -167,6 +186,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libass9 libfreetype6 libfribidi0 libharfbuzz0b libfontconfig1 libpng16-16t64 \
     fonts-dejavu-core \
  && rm -rf /var/lib/apt/lists/*
+
+# [mackid1993] GPU drivers, used by FFmpeg and by Comskip's GPU decoding:
+#   Intel: intel-media-va-driver-non-free (iHD, Broadwell and newer),
+#          i965-va-driver (older), libvpl2 + libmfx-gen1.2 (Quick Sync).
+#          amd64 only, as Intel ships them.
+#   AMD:   mesa-va-drivers (VAAPI), every architecture.
+#   NVIDIA: nothing to install; the NVIDIA Container Toolkit injects the
+#          driver libraries when the container runs with runtime: nvidia.
+RUN arch="$(dpkg --print-architecture)"; extra=""; \
+    if [ "$arch" = "amd64" ]; then extra="intel-media-va-driver-non-free i965-va-driver libvpl2 libmfx-gen1.2"; fi; \
+    apt-get update && apt-get install -y --no-install-recommends \
+      libva2 libva-drm2 libdrm2 mesa-va-drivers $extra \
+ && rm -rf /var/lib/apt/lists/*
+ENV NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
 
 ########################################
 # Stage 3a: Built-in FFmpeg (published image)
