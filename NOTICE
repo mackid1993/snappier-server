@@ -1,0 +1,17 @@
+NOTICE
+
+The 0BSD license in LICENSE applies to mackid1993's work in this repository:
+snappier-select.sh, requirements.txt, the Dockerfile, the GitHub workflows,
+example.vpn.env, the README, and the changes to other files marked
+[mackid1993].
+
+It does not apply to:
+
+- Files from RyDizz214/snappier-server-docker (see UPSTREAM). They are his
+  work, published without a license, and remain under his copyright.
+- Snappier Server, which the container downloads from snappierserver.app at
+  start-up and which is under its own license.
+- Third-party software built into the image, under its own licenses: FFmpeg,
+  x264, x265 and Comskip (GPL), libvpx and Opus (BSD), nv-codec-headers (MIT),
+  Ubuntu packages (their respective licenses). The Dockerfile builds each
+  from its public upstream source.

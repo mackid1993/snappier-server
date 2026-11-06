@@ -1103,4 +1103,4 @@ use it for anything, with no conditions, provided as is with no warranty and
 no liability. The files from RyDizz214's repository (see [`UPSTREAM`](UPSTREAM)),
 Snappier Server itself (see <https://snappierserver.app>) and the third-party
 software in the image (FFmpeg, x264, x265, Comskip and others) remain under
-their own licenses; [LICENSE](LICENSE) lists what it covers.
+their own licenses; [NOTICE](NOTICE) lists what the license covers.
