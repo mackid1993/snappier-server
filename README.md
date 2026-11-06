@@ -79,21 +79,28 @@ Everything works exactly as in RyDizz214's image, with these differences:
    only changes to RyDizz214's scripts; both are marked
    `[mackid1993/snappier-server]`.
 
-4. **GPU acceleration for Intel, AMD and NVIDIA.** Comskip decodes on the
+4. **Reachable on your network out of the box.** The original publishes the
+   web UI on `127.0.0.1:7429`, so the Snappier IPTV app can't reach it
+   without editing the compose file. Here it is on port `8000` (Snappier's
+   own port) on your network. With the VPN overlay, also set
+   `PUBLIC_BASE_URL` (see [Add a VPN](#add-a-vpn-optional)).
+
+5. **GPU acceleration for Intel, AMD and NVIDIA.** Comskip decodes on the
    GPU when one is passed in, and FFmpeg is built with VAAPI, Quick Sync and
    NVENC/NVDEC. Two optional variables, `GPU_DEVICE` and `DOCKER_RUNTIME`,
    turn it on; see [GPU acceleration](#gpu-acceleration). The original runs
    everything on the CPU.
 
-5. **Smaller image** (about 540 MB instead of 750 MB), mostly from not
+6. **Smaller image** (about 540 MB instead of 750 MB), mostly from not
    shipping FFmpeg's build leftovers. Python packages are pinned to the
    versions in the original image.
 
 Files that differ from the original are marked with `[mackid1993]` comments:
-`docker-compose.yml` (image name, `SNAPPIER_VERSION`, the `snappier-cli`
-volume, the GPU lines; the unused `SNAPPIER_SERVER_VERSION` build argument is
-removed), `example.env` (`SNAPPIER_VERSION` replaces `SNAPPIER_SERVER_VERSION`,
-plus `GPU_DEVICE` and `DOCKER_RUNTIME`), `ffmpeg-wrapper.sh`,
+`docker-compose.yml` and `docker-compose.vpn.yml` (image name,
+`SNAPPIER_VERSION`, the `snappier-cli` volume, the GPU lines, port `8000` on
+your network; the unused `SNAPPIER_SERVER_VERSION` build argument is removed),
+`example.env` (`SNAPPIER_VERSION` replaces `SNAPPIER_SERVER_VERSION`, plus
+`GPU_DEVICE`, `DOCKER_RUNTIME`, `HOST_PORT=8000` and `PUBLIC_BASE_URL`), `ffmpeg-wrapper.sh`,
 `scripts/comskip-wrapper.sh`, and the `Dockerfile`. New files: `snappier-select.sh`
 (the build selector), `requirements.txt` and the GitHub workflows. Everything
 else is byte-for-byte RyDizz214's.
@@ -174,7 +181,8 @@ services:
         USE_HOST_FFMPEG: "${USE_HOST_FFMPEG:-false}"
 
     ports:
-      - "127.0.0.1:${HOST_PORT:-7429}:8000"
+      # [mackid1993] On your network, so the Snappier IPTV app can reach it
+      - "${HOST_PORT:-8000}:8000"
       - "127.0.0.1:${NOTIFICATION_HTTP_PORT:-9080}:${NOTIFICATION_HTTP_PORT:-9080}"
 
     env_file:
@@ -336,8 +344,15 @@ USE_HOST_FFMPEG=false
 #COMPOSE_FILE=docker-compose.yml:docker-compose.vpn.yml:docker-compose.host-ffmpeg.yml
 
 # ---------- Core ----------
-# Host port mapping for the Snappier web UI (container always listens on 8000).
-HOST_PORT=7429
+# [mackid1993] Port for the web UI and the Snappier IPTV app, on your network
+# (the container always listens on 8000).
+HOST_PORT=8000
+
+# [mackid1993] Address the Snappier IPTV app uses to reach this server, e.g.
+# http://192.168.1.50:8000. Required with the VPN overlay: inside gluetun the
+# server would otherwise give the app its internal Docker address and
+# playback fails. Leave blank without a VPN.
+PUBLIC_BASE_URL=
 
 # IANA timezone. See: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 # Leave as UTC if unsure.
@@ -495,18 +510,13 @@ The Web UI (dashboard) is where you set Snappier Server up and manage it:
 providers, the TV guide, recordings and settings. It also walks you through
 connecting the Snappier IPTV app. It does not play video; watch in the app.
 
-On the **same machine** running Docker:
+Go to **`http://<docker-host-ip>:8000`** in a browser on any device on your
+network (or `http://localhost:8000` on the Docker host itself). The Snappier
+IPTV app connects to the same address.
 
-- Go to **<http://localhost:7429>** in a browser.
-
-From a **different machine** (phone, laptop, another server):
-
-The web UI isn't exposed to your network by default, for security. You have
-two options:
-
-- **Easy:** SSH into the Docker host and use `localhost:7429` there.
-- **Better:** Put a reverse proxy (Nginx, Caddy, Cloudflare Tunnel) in front
-  of the container and point it at `127.0.0.1:7429`.
+The port is open to your local network so the app can reach it. Don't
+forward it to the internet; for access from outside, use a VPN such as
+Tailscale or a reverse proxy with HTTPS.
 
 ---
 
@@ -550,7 +560,7 @@ Edit `.env` and uncomment / fill in these:
 | If you want…                          | Set this in `.env`                                          |
 |---------------------------------------|-------------------------------------------------------------|
 | Your own timezone                     | `TZ=America/New_York` *(or any IANA zone)*                  |
-| A different web port                  | `HOST_PORT=8080` *(default is 7429)*                        |
+| A different web port                  | `HOST_PORT=8080` *(default is 8000)*                        |
 | Your IPTV provider's EPG (TV guide)   | `EPG_URLS_JSON=[{...}]` *(see comments in example.env)*     |
 | Push notifications on your phone      | `PUSHOVER_USER_KEY=…` and `PUSHOVER_APP_TOKEN=…`            |
 | Commercial skipping on recordings     | `ENABLE_COMSKIP=true` *(CPU-heavy; takes minutes per recording)* |
@@ -583,7 +593,12 @@ ProtonVPN, PIA, Surfshark, AirVPN, and more).
    The exact variable names for your provider are in the
    [gluetun wiki](https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers).
 
-2. Save `docker-compose.vpn.yml` (below) next to `docker-compose.yml`.
+2. Set `PUBLIC_BASE_URL` in `.env` to the address the app uses, for example
+   `PUBLIC_BASE_URL=http://192.168.1.50:8000`. Inside gluetun the server
+   would otherwise give the app its internal Docker address, and playback
+   fails.
+
+3. Save `docker-compose.vpn.yml` (below) next to `docker-compose.yml`.
 
 <details>
 <summary><code>docker-compose.vpn.yml</code></summary>
@@ -627,7 +642,8 @@ services:
       - /dev/net/tun:/dev/net/tun
     # Ports move here because snappier-server shares gluetun's network namespace
     ports:
-      - "127.0.0.1:${HOST_PORT:-7429}:8000"
+      # [mackid1993] On your network, so the Snappier IPTV app can reach it
+      - "${HOST_PORT:-8000}:8000"
       - "127.0.0.1:${NOTIFICATION_HTTP_PORT:-9080}:${NOTIFICATION_HTTP_PORT:-9080}"
     # All VPN config comes from .env — any gluetun var (VPN_SERVICE_PROVIDER,
     # VPN_TYPE, WIREGUARD_PRIVATE_KEY, OPENVPN_USER, SERVER_COUNTRIES, etc.)
@@ -671,7 +687,7 @@ services:
 
 </details>
 
-3. Start with the VPN turned on:
+4. Start with the VPN turned on:
 
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.vpn.yml up -d
@@ -748,15 +764,14 @@ docker logs -f snappier-server # just the Snappier container's logs
 ## Troubleshooting
 
 <details>
-<summary>I can't reach http://localhost:7429 from another device</summary>
+<summary>I can't reach the server from another device</summary>
 
-The port is locked to `127.0.0.1` (localhost only) for security. Either:
-
-- Use a reverse proxy (Nginx, Caddy, Cloudflare Tunnel) — recommended, gives
-  you HTTPS too.
-- Or edit `docker-compose.yml` and change `"127.0.0.1:${HOST_PORT:-7429}:8000"`
-  to just `"${HOST_PORT:-7429}:8000"` to expose on all interfaces. **Only do
-  this on a trusted network** — Snappier's built-in TLS is off by default.
+- Use the Docker host's IP address and the port in `HOST_PORT` (default
+  `8000`): `http://<docker-host-ip>:8000`.
+- Check the host's firewall allows that port from your network.
+- With the VPN overlay, set `PUBLIC_BASE_URL` in `.env` to that same
+  address. Without it, the dashboard loads but playback in the app fails,
+  because the server gives the app its internal Docker address.
 
 </details>
 

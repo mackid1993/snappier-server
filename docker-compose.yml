@@ -34,7 +34,8 @@ services:
         USE_HOST_FFMPEG: "${USE_HOST_FFMPEG:-false}"
 
     ports:
-      - "127.0.0.1:${HOST_PORT:-7429}:8000"
+      # [mackid1993] On your network, so the Snappier IPTV app can reach it
+      - "${HOST_PORT:-8000}:8000"
       - "127.0.0.1:${NOTIFICATION_HTTP_PORT:-9080}:${NOTIFICATION_HTTP_PORT:-9080}"
 
     env_file:
