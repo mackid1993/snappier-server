@@ -11,7 +11,28 @@ It does not apply to:
   work, published without a license, and remain under his copyright.
 - Snappier Server, which the container downloads from snappierserver.app at
   start-up and which is under its own license.
-- Third-party software built into the image, under its own licenses: FFmpeg,
-  x264, x265 and Comskip (GPL), libvpx and Opus (BSD), nv-codec-headers (MIT),
-  Ubuntu packages (their respective licenses). The Dockerfile builds each
-  from its public upstream source.
+- Third-party software built into the image, under its own licenses: FFmpeg
+  (GPL-3.0 or later, as configured here), x264, x265 and Comskip (GPL-2.0 or
+  later), libvpx and Opus (BSD-3-Clause), nv-codec-headers (MIT), and the
+  Ubuntu packages (their respective licenses, in /usr/share/doc inside the
+  image).
+
+Source code for the software compiled into the image
+
+The image is rebuilt every month from the current upstream source of each
+component, so it picks up security fixes. Each image records the exact
+source it was built from in
+
+    /usr/share/doc/snappier-server/SOURCES
+
+which lists every compiled component with its license, its public
+repository or release URL, and the exact commit or release used, plus the
+commit of this repository whose Dockerfile configured (and, for Comskip,
+patched) it. To read it:
+
+    docker run --rm --entrypoint cat ghcr.io/mackid1993/snappier-server:latest /usr/share/doc/snappier-server/SOURCES
+
+The corresponding source is available from those repositories at those
+commits, and from this repository for the build recipe and patch. If a
+listed source ever becomes unavailable upstream, open an issue on
+github.com/mackid1993/snappier-server and it will be provided.

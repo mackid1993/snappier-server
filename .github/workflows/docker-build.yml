@@ -77,6 +77,7 @@ jobs:
           build-args: |
             VERSION=${{ needs.prepare.outputs.version }}
             BUILD_DATE=${{ needs.prepare.outputs.build_date }}
+            REVISION=${{ github.sha }}
           labels: |
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.created=${{ needs.prepare.outputs.build_date }}

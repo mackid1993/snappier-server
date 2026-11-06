@@ -45,11 +45,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-dev libxext-dev libxfixes-dev libxi-dev libxrender-dev libxrandr-dev \
  && rm -rf /var/lib/apt/lists/*
 
+# [mackid1993] Each component appends its exact source (repository and commit
+# or release) to /usr/local/share/snappier-server/SOURCES; the final stage
+# turns it into /usr/share/doc/snappier-server/SOURCES. Builds track upstream
+# for security fixes, so the record is what ties each image to its source.
+
 # x264 (static)
 RUN git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264 \
  && cd /tmp/x264 \
  && ./configure --prefix=/usr/local --enable-static --enable-pic \
- && make -j"$(nproc)" && make install
+ && make -j"$(nproc)" && make install \
+ && mkdir -p /usr/local/share/snappier-server \
+ && printf '%-16s %-15s %s %s\n' "x264" "GPL-2.0+" "https://code.videolan.org/videolan/x264" "commit $(git -C /tmp/x264 rev-parse HEAD)" >> /usr/local/share/snappier-server/SOURCES
 
 # x265 (static) + pkg-config metadata
 ARG X265_VERSION=4.2
@@ -73,7 +80,9 @@ RUN git clone --depth=1 --branch "${X265_VERSION}" https://bitbucket.org/multico
     echo 'Libs: -L${libdir} -lx265 -lstdc++ -lm -lpthread -ldl -lnuma'; \
     echo 'Cflags: -I${includedir}'; \
  } > /usr/local/lib/pkgconfig/x265.pc \
- && ldconfig
+ && ldconfig \
+ && mkdir -p /usr/local/share/snappier-server \
+ && printf '%-16s %-15s %s %s\n' "x265" "GPL-2.0+" "https://bitbucket.org/multicoreware/x265_git" "tag ${X265_VERSION} commit $(git -C /tmp/x265 rev-parse HEAD)" >> /usr/local/share/snappier-server/SOURCES
 
 # (upstream builds fdk-aac here; omitted, it is what makes the build nonfree)
 
@@ -81,13 +90,17 @@ RUN git clone --depth=1 --branch "${X265_VERSION}" https://bitbucket.org/multico
 RUN git clone --depth=1 https://chromium.googlesource.com/webm/libvpx /tmp/libvpx \
  && cd /tmp/libvpx \
  && ./configure --prefix=/usr/local --disable-examples --disable-unit-tests --enable-vp9-highbitdepth \
- && make -j"$(nproc)" && make install
+ && make -j"$(nproc)" && make install \
+ && mkdir -p /usr/local/share/snappier-server \
+ && printf '%-16s %-15s %s %s\n' "libvpx" "BSD-3-Clause" "https://chromium.googlesource.com/webm/libvpx" "commit $(git -C /tmp/libvpx rev-parse HEAD)" >> /usr/local/share/snappier-server/SOURCES
 
 # [mackid1993] GPU support. NVIDIA: the ffnvcodec headers (FFmpeg loads the
 # driver's libraries at run time, injected by the NVIDIA Container Toolkit).
 # Intel Quick Sync: libvpl, which Intel ships for amd64 only.
 RUN git clone --depth=1 https://github.com/FFmpeg/nv-codec-headers.git /tmp/nv-codec-headers \
  && make -C /tmp/nv-codec-headers PREFIX=/usr/local install \
+ && mkdir -p /usr/local/share/snappier-server \
+ && printf '%-16s %-15s %s %s\n' "nv-codec-headers" "MIT" "https://github.com/FFmpeg/nv-codec-headers" "commit $(git -C /tmp/nv-codec-headers rev-parse HEAD)" >> /usr/local/share/snappier-server/SOURCES \
  && if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
       apt-get update && apt-get install -y --no-install-recommends libvpl-dev \
       && rm -rf /var/lib/apt/lists/*; \
@@ -97,7 +110,9 @@ RUN git clone --depth=1 https://github.com/FFmpeg/nv-codec-headers.git /tmp/nv-c
 RUN git clone --depth=1 https://github.com/xiph/opus.git /tmp/opus \
  && cd /tmp/opus && ./autogen.sh \
  && ./configure --prefix=/usr/local --disable-shared \
- && make -j"$(nproc)" && make install
+ && make -j"$(nproc)" && make install \
+ && mkdir -p /usr/local/share/snappier-server \
+ && printf '%-16s %-15s %s %s\n' "opus" "BSD-3-Clause" "https://github.com/xiph/opus" "commit $(git -C /tmp/opus rev-parse HEAD)" >> /usr/local/share/snappier-server/SOURCES
 
 # FFmpeg. Upstream's configure line with --enable-nonfree --enable-libfdk_aac
 # replaced by --enable-version3 (needed for OpenSSL 3 under the GPL).
@@ -136,7 +151,9 @@ RUN set -eux; \
   for e in h264_vaapi hevc_vaapi h264_nvenc hevc_nvenc; do echo "$enc" | grep -q " $e " || { echo "missing $e" >&2; exit 1; }; done; \
   if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
     for e in h264_qsv hevc_qsv; do echo "$enc" | grep -q " $e " || { echo "missing $e" >&2; exit 1; }; done; \
-  fi
+  fi; \
+  mkdir -p /usr/local/share/snappier-server; \
+  printf '%-16s %-15s %s %s\n' "FFmpeg" "GPL-3.0+" "https://ffmpeg.org/releases/${FFMPEG_TARBALL}" "release ${FFMPEG_TARBALL%.tar.xz}" >> /usr/local/share/snappier-server/SOURCES
 
 ########################################
 # Stage 1b: Build Comskip from source (identical to upstream)
@@ -166,7 +183,9 @@ RUN git clone --depth=1 https://github.com/erikkaashoek/Comskip.git /tmp/comskip
  && ./configure --bindir=/usr/local/bin \
  && make -j"$(nproc)" comskip \
  && install -m 0755 comskip /usr/local/bin/comskip \
- && test -x /usr/local/bin/comskip
+ && test -x /usr/local/bin/comskip \
+ && mkdir -p /usr/local/share/snappier-server \
+ && printf '%-16s %-15s %s %s\n' "Comskip" "GPL-2.0+" "https://github.com/erikkaashoek/Comskip" "commit $(git -C /tmp/comskip rev-parse HEAD), patched by the Dockerfile" > /usr/local/share/snappier-server/SOURCES.comskip
 
 ########################################
 # Stage 2: Common runtime base (upstream's package list, plus minisign)
@@ -232,6 +251,7 @@ FROM runtime-${USE_HOST_FFMPEG} AS final
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BUILD_DATE
 ARG VERSION
+ARG REVISION=unknown
 
 LABEL org.opencontainers.image.title="Snappier Server"
 LABEL org.opencontainers.image.description="Snappier Server; the server build is chosen at runtime with SNAPPIER_VERSION"
@@ -275,6 +295,23 @@ COPY comskip.ini /usr/local/etc/comskip.ini
 RUN chmod +x /usr/local/bin/comskip /usr/local/bin/comskip.real \
  && ldd /usr/local/bin/comskip.real \
  && ! ldd /usr/local/bin/comskip.real | grep -q 'not found'
+
+# [mackid1993] The source record for this image (see NOTICE): every component
+# compiled into it, with its license, repository and exact commit or release.
+COPY --from=comskip-build /usr/local/share/snappier-server/SOURCES.comskip /tmp/SOURCES.comskip
+RUN mkdir -p /usr/share/doc/snappier-server \
+ && { \
+      echo "Source of the software compiled into this image"; \
+      echo "Image ${VERSION:-local build}, built ${BUILD_DATE:-unknown} from"; \
+      echo "https://github.com/mackid1993/snappier-server commit ${REVISION}"; \
+      echo "(its Dockerfile shows how each component below was configured and patched)"; \
+      echo; \
+      printf '%-16s %-15s %s %s\n' "Component" "License" "Source" "Version"; \
+      cat /usr/local/share/snappier-server/SOURCES 2>/dev/null || echo "(FFmpeg from the host: USE_HOST_FFMPEG=true)"; \
+      cat /tmp/SOURCES.comskip; \
+    } > /usr/share/doc/snappier-server/SOURCES \
+ && rm -f /tmp/SOURCES.comskip \
+ && cat /usr/share/doc/snappier-server/SOURCES
 
 # Entrypoint (upstream's) and the runtime build selector that runs before it.
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
