@@ -7,11 +7,7 @@ on:
     # chosen at container start (SNAPPIER_VERSION), so new Snappier releases
     # need no rebuild.
     - cron: '0 5 1 * *'
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - '.auto-commit.txt'
+  # Manual builds from the Actions tab. Pushes never build.
   workflow_dispatch:
 
 env:

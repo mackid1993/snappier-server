@@ -14,6 +14,13 @@ Intel/AMD (`amd64`) and ARM (`arm64`) — no building required.
 Runs the newest Snappier Server release (or the beta, or a release you pick)
 with FFmpeg **9.0.1** on Ubuntu **26.04 LTS**.
 
+- **Monthly rebuilds.** The image rebuilds on the 1st of each month with a
+  fresh Ubuntu base and current packages, so security fixes and dependency
+  updates arrive without waiting for a release. Pull `latest` to get them.
+- **No image update needed for new Snappier releases.** The container
+  installs the Snappier Server build you choose when it starts (see below),
+  so a restart picks up a new release.
+
 ## Thank you, and credits
 
 This image is built on
