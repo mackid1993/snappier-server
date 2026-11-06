@@ -1,0 +1,42 @@
+# Secrets / runtime
+.env
+*.pem
+*.key
+
+# Runtime state dirs (created by containers / scripts)
+data/
+gluetun/
+epg-merger/
+epg/
+logs/
+test/
+schedules.json
+
+# Build / local cache
+build.log
+**/__pycache__/
+*.pyc
+
+# Editor / tool state
+.claude/
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Local backups / archived notes
+*.backup
+*.bak
+*_BUG_REPORT.md
+*_BUG_REPORT.html
+*_ROOT_CAUSE_AND_FIX.html
+*_BUG_FIX_SUMMARY.html
+FEATURE_REQUEST_*.md
+RELEASE_NOTES_*.md
+.pia.creds
+scripts/pia-ca.rsa.4096.crt
+backups_.env.before-pia-rekey-*
+
+# Host-specific VPN key rotation (PIA credentials, not portable)
+scripts/snappier-pia-rekey.sh
