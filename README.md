@@ -1098,7 +1098,9 @@ byte-for-byte RyDizz214's.
 
 ## License
 
-See Snappier Server's licensing at <https://snappierserver.app>. This
-repository contains only the Docker packaging, wrappers and helper scripts;
-those are by RyDizz214 except `snappier-select.sh`, `requirements.txt`, the
-workflows and the changes listed above.
+mackid1993's work in this repository is under the [0BSD license](LICENSE):
+use it for anything, with no conditions, provided as is with no warranty and
+no liability. The files from RyDizz214's repository (see [`UPSTREAM`](UPSTREAM)),
+Snappier Server itself (see <https://snappierserver.app>) and the third-party
+software in the image (FFmpeg, x264, x265, Comskip and others) remain under
+their own licenses; [LICENSE](LICENSE) lists what it covers.
