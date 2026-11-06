@@ -8,7 +8,8 @@
 #   - The host ffmpeg is newer than the one baked into the image
 #
 # NOT RECOMMENDED for most users. The published image includes a static
-# ffmpeg built from source with libx264/libx265/libfdk_aac/libvpx/libopus.
+# ffmpeg built from source with libx264/libx265/libvpx/libopus and GPU
+# support (VAAPI, Quick Sync, NVENC/NVDEC).
 #
 # LIMITATIONS:
 #   - x86-64 hosts only (the shim hardcodes ld-linux-x86-64.so.2).
@@ -18,10 +19,8 @@
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.host-ffmpeg.yml up -d
 #
-# Combined with VPN:
-#   docker compose -f docker-compose.yml \
-#                  -f docker-compose.vpn.yml \
-#                  -f docker-compose.host-ffmpeg.yml up -d
+# With the VPN setup instead:
+#   docker compose -f docker-compose.vpn.yml -f docker-compose.host-ffmpeg.yml up -d
 ########################################
 
 services:

@@ -1,19 +1,13 @@
 ########################################
-# Snappier Server — Base Configuration
+# Snappier Server, without a VPN
 #
-# Pulls the pre-built multi-arch image from GHCR by default. To build locally
-# instead, run: `docker compose build` (uses the bundled Dockerfile).
+# Save this file and .env in one folder, then run: docker compose up -d
+# For the VPN setup use docker-compose.vpn.yml with its own .env instead.
 #
-# Usage (standalone, no VPN, built-in ffmpeg):
-#   docker compose up -d
-#
-# Usage (with VPN):
-#   docker compose -f docker-compose.yml -f docker-compose.vpn.yml up -d
-#
-# Usage (host ffmpeg, dev only, x86-64):
-#   docker compose -f docker-compose.yml -f docker-compose.host-ffmpeg.yml up -d
-#
-# Or set COMPOSE_FILE in .env to combine overlays automatically.
+# Pulls the pre-built multi-arch image from GHCR. To build locally instead,
+# run `docker compose build` from a clone of the repository.
+# Developers: docker-compose.host-ffmpeg.yml swaps in the host's FFmpeg
+# (see the README's Advanced section).
 ########################################
 
 services:
