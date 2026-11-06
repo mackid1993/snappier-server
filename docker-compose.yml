@@ -115,20 +115,14 @@ services:
       FFMPEG_WRAPPER_LOG: "/root/SnappierServer/logs/ffmpeg_wrapper.log"
 
     volumes:
-      # Host path root for persistent data. Override DATA_DIR in .env
-      # (defaults to ./data beside docker-compose.yml).
-      - ${DATA_DIR:-./data}/Recordings:/root/SnappierServer/Recordings
-      - ${DATA_DIR:-./data}/Movies:/root/SnappierServer/Movies
-      - ${DATA_DIR:-./data}/TVSeries:/root/SnappierServer/TVSeries
-      - ${DATA_DIR:-./data}/PVR:/root/SnappierServer/PVR
-      - ${DATA_DIR:-./data}/epg:/root/SnappierServer/epg
+      # [mackid1993] The whole data folder (config.json, PVR, epg, logs,
+      # Recordings, Movies, TVSeries, the Xtream catalog and the downloaded
+      # Snappier builds in .snappier-cli). Defaults to ./data beside this
+      # file; override DATA_DIR in .env. Mounting config.json on its own, as
+      # the original does, makes Docker create a directory on a fresh install
+      # and the server restart-loops.
+      - ${DATA_DIR:-./data}:/root/SnappierServer
       - ${DATA_DIR:-./data}/certs:/opt/SnappierServer/certs:ro
-      - ${DATA_DIR:-./data}/logs:/root/SnappierServer/logs
-      - ${DATA_DIR:-./data}/config.json:/root/SnappierServer/config.json
-      # [mackid1993] Downloaded Snappier Server builds (selected by
-      # SNAPPIER_VERSION). Keeps them across container re-creates so a build
-      # is only downloaded once.
-      - ${DATA_DIR:-./data}/snappier-cli:/root/SnappierServer/.snappier-cli
 
     extra_hosts:
       - "${SNAPPIER_DOMAIN:-snappier.local}:127.0.0.1"
