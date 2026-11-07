@@ -1,0 +1,27 @@
+# Temporary catch-up time-zone shim on top of the published image.
+#
+# Snappier Server reports the host's zone in player_api.php server_info.timezone
+# and forwards timeshift requests to the provider unconverted. The app formats
+# "watch from start" in the reported zone, so with a UTC provider and a
+# non-UTC host every start-over lands hours early. This layer puts nginx in
+# front of the server and rewrites that one field to PROVIDER_TZ (default UTC)
+# so the app formats in the provider's zone. The server itself keeps running
+# on TZ, so time-locked PVR rules, DST and the dashboard clock are unchanged.
+#
+# Remove this layer once the server reports the provider's zone itself.
+ARG BASE=ghcr.io/mackid1993/snappier-server:latest
+FROM ${BASE}
+
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends nginx-light \
+ && rm -rf /var/lib/apt/lists/* /etc/nginx/sites-enabled/default
+
+COPY shim/nginx.conf.template /etc/snappier-shim/nginx.conf.template
+COPY shim/shim-entrypoint.sh /usr/local/bin/shim-entrypoint.sh
+RUN chmod +x /usr/local/bin/shim-entrypoint.sh
+
+# The server listens on SNAPPIER_INTERNAL_PORT; nginx answers on PORT (8000).
+ENV SNAPPIER_INTERNAL_PORT=8010 \
+    PROVIDER_TZ=UTC
+
+CMD ["/usr/local/bin/shim-entrypoint.sh"]

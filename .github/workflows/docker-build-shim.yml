@@ -1,0 +1,70 @@
+name: Build and Push Shim Image
+
+# Builds Dockerfile.shim (the catch-up time-zone shim layered on the published
+# image) and pushes it as the `shim` tag only. Never touches `latest`.
+# Runs on pushes to the shim branch (GitHub cannot dispatch a workflow that
+# is not on the default branch) and manually from the Actions tab.
+
+on:
+  push:
+    branches: [catchup-tz-shim]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Base image to layer on'
+        required: false
+        default: 'ghcr.io/mackid1993/snappier-server:latest'
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image name
+        id: v
+        run: |
+          echo "image=${{ env.REGISTRY }}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +'%Y.%m.%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push shim tag
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.shim
+          platforms: linux/amd64,linux/arm64
+          pull: true
+          push: true
+          build-args: |
+            BASE=${{ github.event.inputs.base || 'ghcr.io/mackid1993/snappier-server:latest' }}
+          tags: |
+            ${{ steps.v.outputs.image }}:shim
+            ${{ steps.v.outputs.image }}:shim-${{ steps.v.outputs.date }}-${{ github.run_number }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          provenance: false
+          sbom: false
+
+      - name: Inspect
+        run: docker buildx imagetools inspect "${{ steps.v.outputs.image }}:shim"
